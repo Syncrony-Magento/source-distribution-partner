@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Source Content Distribution 
  * Description: Pull approved content from Source bundles and publish to WordPress with taxonomy mapping. See Settings - Source
- * Version: 1.4.72
+ * Version: 1.4.74
  * Author: Syncrony Digital
  * Update URI: https://github.com/Syncrony-Magento/source-distribution-partner
  * License: GPLv2 or later
@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 
 final class Source_Distribution_Partner_Plugin
 {
-    private const VERSION = '1.4.72';
+    private const VERSION = '1.4.74';
     private const API_BASE = 'https://api.wearesource.earth';
 
     private const PAGE_SLUG = 'source-dp';
@@ -4825,23 +4825,62 @@ final class Source_Distribution_Partner_GitHub_Updater
 
         $source = untrailingslashit((string)$source);
         $remote_source = untrailingslashit((string)$remote_source);
-        $target = $remote_source . '/' . $this->slug;
 
-        if ($source === $target || !is_dir($source)) {
+        if (!is_dir($source)) {
             return $source;
         }
 
-        global $wp_filesystem;
-        if ($wp_filesystem && method_exists($wp_filesystem, 'move')) {
-            if (is_dir($target)) {
-                $wp_filesystem->delete($target, true);
-            }
-            if ($wp_filesystem->move($source, $target, true)) {
-                return $target;
+        $target = $remote_source . '/' . $this->slug;
+        $main_file = basename($this->plugin_basename);
+
+        // Case 1: the ZIP already extracts to /source-distribution-partner/.
+        if (basename($source) === $this->slug && file_exists($source . '/' . $main_file)) {
+            return $source;
+        }
+
+        // Case 2: the ZIP extracts to a GitHub/generated folder that contains the plugin file at its root.
+        if (file_exists($source . '/' . $main_file)) {
+            return $this->move_package_folder($source, $target);
+        }
+
+        // Case 3: the ZIP extracts to a wrapper folder that contains /source-distribution-partner/.
+        $nested = $source . '/' . $this->slug;
+        if (is_dir($nested) && file_exists($nested . '/' . $main_file)) {
+            return $this->move_package_folder($nested, $target);
+        }
+
+        // Case 4: a single nested folder exists with the plugin file inside it.
+        $children = glob($source . '/*', GLOB_ONLYDIR);
+        if (is_array($children) && count($children) === 1) {
+            $child = untrailingslashit((string)$children[0]);
+            if (file_exists($child . '/' . $main_file)) {
+                return $this->move_package_folder($child, $target);
             }
         }
 
         return $source;
+    }
+
+    private function move_package_folder(string $from, string $to): string
+    {
+        $from = untrailingslashit($from);
+        $to = untrailingslashit($to);
+
+        if ($from === $to) {
+            return $from;
+        }
+
+        global $wp_filesystem;
+        if ($wp_filesystem && method_exists($wp_filesystem, 'move')) {
+            if (is_dir($to)) {
+                $wp_filesystem->delete($to, true);
+            }
+            if ($wp_filesystem->move($from, $to, true)) {
+                return $to;
+            }
+        }
+
+        return $from;
     }
 
     private function get_latest_release(bool $force = false): ?array
@@ -4957,5 +4996,5 @@ final class Source_Distribution_Partner_GitHub_Updater
 
 register_activation_hook(__FILE__, [Source_Distribution_Partner_Plugin::class, 'activate']);
 register_deactivation_hook(__FILE__, [Source_Distribution_Partner_Plugin::class, 'deactivate']);
-Source_Distribution_Partner_GitHub_Updater::init(__FILE__, '1.4.72');
+Source_Distribution_Partner_GitHub_Updater::init(__FILE__, '1.4.73');
 Source_Distribution_Partner_Plugin::init();
