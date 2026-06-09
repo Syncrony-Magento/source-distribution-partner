@@ -1,7 +1,7 @@
 /**
  * Plugin Name: Source Content Distribution
  * Description: Pull approved content from Source bundles and publish to WordPress with taxonomy mapping.
- * Version: 1.4.72
+ * Version: 1.4.74
  * Author: Syncrony Digital
  * License: GPLv2 or later
  * Text Domain: source-distribution-partner
